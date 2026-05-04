@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum WeightUnit {
+  kg
+  lbs
+}
+
+enum QuantityType {
+  number
+  weight
+}
+
+enum FoodEntryType {
+  manual
+  meal
+}
+
+model Profile {
+  id           String           @id @default(uuid()) @db.Uuid
+  name         String           @default("")
+  email        String           @unique
+  passwordHash String           @map("password_hash")
+  weightUnit   WeightUnit       @default(kg) @map("weight_unit")
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  weightLogs   WeightLog[]
+  ingredients  Ingredient[]
+  meals        Meal[]
+  foodLogs     FoodLog[]
+  exercises    Exercise[]
+  programs     WorkoutProgram[]
+  workoutLogs  WorkoutLog[]
+
+  @@map("profiles")
+}
+
+model WeightLog {
+  id        String     @id @default(uuid()) @db.Uuid
+  userId    String     @map("user_id") @db.Uuid
+  value     Decimal    @db.Decimal
+  unit      WeightUnit @default(kg)
+  loggedAt  DateTime   @default(now()) @map("logged_at") @db.Timestamptz(6)
+  note      String?
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      Profile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, loggedAt(sort: Desc)], map: "weight_logs_user_date")
+  @@map("weight_logs")
+}
+
+model Ingredient {
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  name           String
+  caloriesPer100 Decimal          @default(0) @map("calories_per_100g") @db.Decimal
+  proteinPer100  Decimal          @default(0) @map("protein_per_100g") @db.Decimal
+  carbsPer100    Decimal          @default(0) @map("carbs_per_100g") @db.Decimal
+  fatPer100      Decimal          @default(0) @map("fat_per_100g") @db.Decimal
+  isPublic       Boolean          @default(false) @map("is_public")
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  user           Profile          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mealIngredients MealIngredient[]
+
+  @@index([userId], map: "ingredients_user")
+  @@map("ingredients")
+}
+
+model Meal {
+  id          String           @id @default(uuid()) @db.Uuid
+  userId      String           @map("user_id") @db.Uuid
+  name        String
+  description String?
+  calories    Decimal          @default(0) @db.Decimal
+  protein     Decimal          @default(0) @db.Decimal
+  carbs       Decimal          @default(0) @db.Decimal
+  fat         Decimal          @default(0) @db.Decimal
+  servingSize Decimal?         @map("serving_size") @db.Decimal
+  isPublic    Boolean          @default(false) @map("is_public")
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  user        Profile          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mealIngredients MealIngredient[]
+  foodLogs    FoodLog[]
+
+  @@index([userId], map: "meals_user")
+  @@map("meals")
+}
+
+model MealIngredient {
+  id           String       @id @default(uuid()) @db.Uuid
+  mealId       String       @map("meal_id") @db.Uuid
+  ingredientId String       @map("ingredient_id") @db.Uuid
+  quantity     Decimal      @default(100) @db.Decimal
+  quantityType QuantityType @default(weight) @map("quantity_type")
+  meal         Meal         @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient   @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([mealId, ingredientId])
+  @@map("meal_ingredients")
+}
+
+model FoodLog {
+  id             String        @id @default(uuid()) @db.Uuid
+  userId         String        @map("user_id") @db.Uuid
+  loggedAt       DateTime      @default(now()) @map("logged_at") @db.Timestamptz(6)
+  entryType      FoodEntryType @default(manual) @map("entry_type")
+  mealId         String?       @map("meal_id") @db.Uuid
+  calories       Decimal       @default(0) @db.Decimal
+  protein        Decimal       @default(0) @db.Decimal
+  carbs          Decimal       @default(0) @db.Decimal
+  fat            Decimal       @default(0) @db.Decimal
+  portionPercent Decimal       @default(100) @map("portion_percent") @db.Decimal
+  note           String?
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  user           Profile       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meal           Meal?         @relation(fields: [mealId], references: [id], onDelete: SetNull)
+
+  @@index([userId, loggedAt(sort: Desc)], map: "food_logs_user_date")
+  @@map("food_logs")
+}
+
+model Exercise {
+  id           String               @id @default(uuid()) @db.Uuid
+  userId       String               @map("user_id") @db.Uuid
+  name         String
+  muscleGroup  String?              @map("muscle_group")
+  description  String?
+  isPublic     Boolean              @default(false) @map("is_public")
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  user         Profile              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programExercises ProgramExercise[]
+  workoutExerciseLogs WorkoutExerciseLog[]
+
+  @@index([userId], map: "exercises_user")
+  @@map("exercises")
+}
+
+model WorkoutProgram {
+  id          String            @id @default(uuid()) @db.Uuid
+  userId      String            @map("user_id") @db.Uuid
+  name        String
+  description String?
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  user        Profile           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises   ProgramExercise[]
+  workoutLogs WorkoutLog[]
+
+  @@index([userId], map: "workout_programs_user")
+  @@map("workout_programs")
+}
+
+model ProgramExercise {
+  id          String        @id @default(uuid()) @db.Uuid
+  programId   String        @map("program_id") @db.Uuid
+  exerciseId  String        @map("exercise_id") @db.Uuid
+  orderIndex  Int           @default(0) @map("order_index")
+  defaultSets Int           @default(3) @map("default_sets")
+  defaultReps Int           @default(10) @map("default_reps")
+  program     WorkoutProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  exercise    Exercise      @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, exerciseId])
+  @@map("program_exercises")
+}
+
+model WorkoutLog {
+  id              String               @id @default(uuid()) @db.Uuid
+  userId          String               @map("user_id") @db.Uuid
+  programId       String?              @map("program_id") @db.Uuid
+  loggedAt        DateTime             @default(now()) @map("logged_at") @db.Timestamptz(6)
+  durationMinutes Int?                 @map("duration_minutes")
+  note            String?
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  user            Profile              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program         WorkoutProgram?      @relation(fields: [programId], references: [id], onDelete: SetNull)
+  exercises       WorkoutExerciseLog[]
+
+  @@index([userId, loggedAt(sort: Desc)], map: "workout_logs_user_date")
+  @@map("workout_logs")
+}
+
+model WorkoutExerciseLog {
+  id           String    @id @default(uuid()) @db.Uuid
+  workoutLogId String    @map("workout_log_id") @db.Uuid
+  exerciseId   String    @map("exercise_id") @db.Uuid
+  workoutLog   WorkoutLog @relation(fields: [workoutLogId], references: [id], onDelete: Cascade)
+  exercise     Exercise  @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  setLogs      SetLog[]
+
+  @@map("workout_exercise_logs")
+}
+
+model SetLog {
+  id                   String      @id @default(uuid()) @db.Uuid
+  workoutExerciseLogId String      @map("workout_exercise_log_id") @db.Uuid
+  setNumber            Int         @default(1) @map("set_number")
+  reps                 Int         @default(0)
+  weight               Decimal?    @db.Decimal
+  weightUnit           WeightUnit? @map("weight_unit")
+  note                 String?
+  workoutExerciseLog   WorkoutExerciseLog @relation(fields: [workoutExerciseLogId], references: [id], onDelete: Cascade)
+
+  @@map("set_logs")
+}

@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: fitplus-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fitplus
+    ports:
+      - "5432:5432"
+    volumes:
+      - fitplus-db-data:/var/lib/postgresql/data
+
+volumes:
+  fitplus-db-data:
